@@ -23,7 +23,7 @@ export default class AutoFrontMatterPlugin extends Plugin {
 
     this.app.vault.on("modify", async (file) => {
       if (this.settings.updateOnModify) {
-        this.updateFrontMatter(file);
+        this.updateFrontMatter(file as TFile);
       }
     });
 
