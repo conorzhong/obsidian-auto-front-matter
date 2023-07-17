@@ -1,6 +1,6 @@
 {
   "name": "obsidian-auto-front-matter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Auto update front matter",
   "main": "main.js",
   "scripts": {
