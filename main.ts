@@ -1,4 +1,4 @@
-import dayjs from "dayjs";
+import { moment } from "obsidian";
 import { customAlphabet } from "nanoid";
 import { App, Plugin, PluginSettingTab, Setting, TFile } from "obsidian";
 import { notice } from "src/utils";
@@ -21,11 +21,15 @@ export default class AutoFrontMatterPlugin extends Plugin {
     await this.loadSettings();
     this.addSettingTab(new AutoFrontMatterSettingTab(this.app, this));
 
-    this.app.vault.on("modify", async (file) => {
-      if (this.settings.updateOnModify) {
-        this.updateFrontMatter(file as TFile);
-      }
-    });
+    this.registerEvent(
+      this.app.vault.on("modify", async (file) => {
+        if (this.settings.updateOnModify) {
+          if (file instanceof TFile) {
+            this.updateFrontMatter(file);
+          }
+        }
+      })
+    );
 
     this.addCommand({
       id: "update-current-front-matter",
@@ -53,10 +57,10 @@ export default class AutoFrontMatterPlugin extends Plugin {
         }
         // datetimeCreate
         if (isUndefined(frontMatter.datetimeCreate)) {
-          frontMatter.datetimeCreate = dayjs().format("YYYY-MM-DD HH:mm:ss");
+          frontMatter.datetimeCreate = moment().format("YYYY-MM-DD HH:mm:ss");
         }
         // datetimeUpdate
-        frontMatter.datetimeUpdate = dayjs().format("YYYY-MM-DD HH:mm:ss");
+        frontMatter.datetimeUpdate = moment().format("YYYY-MM-DD HH:mm:ss");
         // reorder these keys
         // simply delete and add
         const oldFrontMatter = { ...frontMatter };
@@ -96,8 +100,7 @@ class AutoFrontMatterSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName("UpdateOnModify")
-      .setDesc("Update front matter when file changed")
+      .setName("Automatically update the front matter when a file changed")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.updateOnModify)
