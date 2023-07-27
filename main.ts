@@ -30,6 +30,15 @@ export default class AutoFrontMatterPlugin extends Plugin {
         }
       })
     );
+    this.registerEvent(
+      this.app.vault.on("rename", async (file) => {
+        if (this.settings.updateOnModify) {
+          if (file instanceof TFile) {
+            this.updateFrontMatter(file);
+          }
+        }
+      })
+    );
 
     this.addCommand({
       id: "update-current-front-matter",
@@ -48,9 +57,7 @@ export default class AutoFrontMatterPlugin extends Plugin {
     try {
       await this.app.fileManager.processFrontMatter(file, (frontMatter) => {
         // title
-        if (isUndefined(frontMatter.title)) {
-          frontMatter.title = file.name.replace(/\.[^.]+$/, "");
-        }
+        frontMatter.title = file.basename;
         // id
         if (isUndefined(frontMatter.id)) {
           frontMatter.id = nanoid();
