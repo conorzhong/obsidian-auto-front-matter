@@ -1,17 +1,27 @@
-import { moment } from "obsidian";
-import { customAlphabet } from "nanoid";
-import { App, Plugin, PluginSettingTab, Setting, TFile } from "obsidian";
-import { notice } from "src/utils";
 import isUndefined from "lodash-es/isUndefined";
+import { customAlphabet } from "nanoid";
+import { Plugin, TFile, moment } from "obsidian";
+import { AutoFrontMatterSettingTab } from "src/setting-tab";
+import { notice } from "src/utils";
 
 const nanoid = customAlphabet("1234567890abcdef", 10);
 
 interface PluginSettings {
-  updateOnModify: boolean;
+  auto: boolean;
+  isReorderRequired: boolean;
+  isTitleRequired: boolean;
+  isIdRequired: boolean;
+  isDatetimeCreateRequired: boolean;
+  isDatetimeUpdateRequired: boolean;
 }
 
 const DEFAULT_SETTINGS: PluginSettings = {
-  updateOnModify: true,
+  auto: false,
+  isReorderRequired: false,
+  isTitleRequired: false,
+  isIdRequired: false,
+  isDatetimeCreateRequired: false,
+  isDatetimeUpdateRequired: false,
 };
 
 export default class AutoFrontMatterPlugin extends Plugin {
@@ -21,9 +31,10 @@ export default class AutoFrontMatterPlugin extends Plugin {
     await this.loadSettings();
     this.addSettingTab(new AutoFrontMatterSettingTab(this.app, this));
 
+    // event
     this.registerEvent(
       this.app.vault.on("modify", async (file) => {
-        if (this.settings.updateOnModify) {
+        if (this.settings.auto) {
           if (file instanceof TFile) {
             this.updateFrontMatter(file);
           }
@@ -32,7 +43,7 @@ export default class AutoFrontMatterPlugin extends Plugin {
     );
     this.registerEvent(
       this.app.vault.on("rename", async (file) => {
-        if (this.settings.updateOnModify) {
+        if (this.settings.auto) {
           if (file instanceof TFile) {
             this.updateFrontMatter(file);
           }
@@ -40,6 +51,7 @@ export default class AutoFrontMatterPlugin extends Plugin {
       })
     );
 
+    // command
     this.addCommand({
       id: "update-current-front-matter",
       name: "Update current front matter",
@@ -57,28 +69,41 @@ export default class AutoFrontMatterPlugin extends Plugin {
     try {
       await this.app.fileManager.processFrontMatter(file, (frontMatter) => {
         // title
-        frontMatter.title = file.basename;
+        if (this.settings.isTitleRequired) {
+          frontMatter.title = file.basename;
+        }
         // id
-        if (isUndefined(frontMatter.id)) {
+        if (this.settings.isIdRequired && isUndefined(frontMatter.id)) {
           frontMatter.id = nanoid();
         }
         // datetimeCreate
-        if (isUndefined(frontMatter.datetimeCreate)) {
-          frontMatter.datetimeCreate = moment().format("YYYY-MM-DD HH:mm:ss");
+        if (
+          this.settings.isDatetimeCreateRequired &&
+          isUndefined(frontMatter.datetimeCreate)
+        ) {
+          frontMatter.datetimeCreate = moment(file.stat.ctime).format(
+            "YYYY-MM-DD HH:mm:ss"
+          );
         }
         // datetimeUpdate
-        frontMatter.datetimeUpdate = moment().format("YYYY-MM-DD HH:mm:ss");
+        if (this.settings.isDatetimeUpdateRequired) {
+          frontMatter.datetimeUpdate = moment(file.stat.mtime).format(
+            "YYYY-MM-DD HH:mm:ss"
+          );
+        }
         // reorder these keys
         // simply delete and add
-        const oldFrontMatter = { ...frontMatter };
-        delete frontMatter.title;
-        delete frontMatter.id;
-        delete frontMatter.datetimeCreate;
-        delete frontMatter.datetimeUpdate;
-        frontMatter.title = oldFrontMatter.title;
-        frontMatter.id = oldFrontMatter.id;
-        frontMatter.datetimeCreate = oldFrontMatter.datetimeCreate;
-        frontMatter.datetimeUpdate = oldFrontMatter.datetimeUpdate;
+        if (this.settings.isReorderRequired) {
+          const oldFrontMatter = { ...frontMatter };
+          delete frontMatter.title;
+          delete frontMatter.id;
+          delete frontMatter.datetimeCreate;
+          delete frontMatter.datetimeUpdate;
+          frontMatter.title = oldFrontMatter.title;
+          frontMatter.id = oldFrontMatter.id;
+          frontMatter.datetimeCreate = oldFrontMatter.datetimeCreate;
+          frontMatter.datetimeUpdate = oldFrontMatter.datetimeUpdate;
+        }
       });
     } catch (e) {
       notice("happened an error, please check your front matter");
@@ -91,30 +116,5 @@ export default class AutoFrontMatterPlugin extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
-  }
-}
-
-class AutoFrontMatterSettingTab extends PluginSettingTab {
-  plugin: AutoFrontMatterPlugin;
-
-  constructor(app: App, plugin: AutoFrontMatterPlugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-  }
-
-  display(): void {
-    const { containerEl } = this;
-    containerEl.empty();
-
-    new Setting(containerEl)
-      .setName("Automatically update the front matter when a file changed")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.updateOnModify)
-          .onChange(async (value) => {
-            this.plugin.settings.updateOnModify = value;
-            await this.plugin.saveSettings();
-          })
-      );
   }
 }
