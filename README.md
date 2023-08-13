@@ -12,6 +12,9 @@ Update current front matter: do the job manully.
 
 ## Options
 
-### UpdateOnModify
-
-Update front matter when file changed
+- Automatically update the front matter when a file changed
+- Reorder front matter keys
+- Use title
+- Use id
+- Use datetimeCreate
+- Use datetimeUpdate
