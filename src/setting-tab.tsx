@@ -8,10 +8,18 @@ import { Settings } from "./settings";
 export class AutoFrontMatterSettingTab extends PluginSettingTab {
   plugin: AutoFrontMatterPlugin;
   root: Root | null = null;
+  theme: "dark" | "light" = "dark";
 
   constructor(app: App, plugin: AutoFrontMatterPlugin) {
     super(app, plugin);
     this.plugin = plugin;
+    this.plugin.registerEvent(
+      plugin.app.workspace.on("css-change", () => {
+        this.theme = document.body.classList.contains("theme-dark")
+          ? "dark"
+          : "light";
+      })
+    );
   }
 
   display(): void {
@@ -20,7 +28,10 @@ export class AutoFrontMatterSettingTab extends PluginSettingTab {
       <StrictMode>
         <ConfigProvider
           theme={{
-            algorithm: theme.darkAlgorithm,
+            algorithm:
+              this.theme === "dark"
+                ? theme.darkAlgorithm
+                : theme.defaultAlgorithm,
             token: { colorPrimary: "#7756ec" },
           }}
         >

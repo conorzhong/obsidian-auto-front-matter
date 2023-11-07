@@ -29,5 +29,3 @@ A: 因为 Linter 的排序很好用
 1. Name 修改时意外失去焦点，目前可以考虑通过粘贴方式修改 Name
 
 ## TODO
-
-1. antd 主题依靠 Obsidian 的主题
