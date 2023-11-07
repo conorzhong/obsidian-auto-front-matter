@@ -1,4 +1,5 @@
 import { Button, Card, Col, Form, Input, Row, Select } from "antd";
+import keyBy from "lodash-es/keyBy";
 import moment from "moment";
 import { customAlphabet } from "nanoid";
 import { TFile } from "obsidian";
@@ -14,23 +15,22 @@ type ValueType =
 
 type ActionType = "delete" | "update" | "append" | "once" | "none";
 
-export interface FieldOption {
+export interface FieldOptionBase {
   name: string;
   valueType: ValueType;
   actionType: ActionType;
 }
 
-export interface FieldOptionString extends FieldOption {
+export interface FieldOptionString extends FieldOptionBase {
   valueType: "string";
   valueOption: {
     content: string;
   };
 }
 
-export const computeField = (
-  fieldOption: FieldOption | FieldOptionString,
-  file: TFile
-) => {
+export type FieldOption = FieldOptionBase | FieldOptionString;
+
+export const computeField = (fieldOption: FieldOption, file: TFile) => {
   if (fieldOption.valueType === "string") {
     return (fieldOption as FieldOptionString).valueOption.content;
   } else if (fieldOption.valueType === "datetime") {
@@ -46,9 +46,57 @@ export const computeField = (
   }
 };
 
+export const modifyFrontMatter = (
+  frontMatter: any,
+  fieldOptions: FieldOption[],
+  file: TFile
+) => {
+  const hash = keyBy(fieldOptions, "name");
+  for (const key in hash) {
+    if (Object.prototype.hasOwnProperty.call(hash, key)) {
+      const fieldOption = hash[key];
+      const actionType = fieldOption.actionType;
+      if (actionType === "none") {
+        continue;
+      } else if (actionType === "delete") {
+        delete frontMatter[fieldOption.name];
+      } else if (actionType === "update") {
+        const nextValue = computeField(fieldOption, file);
+        frontMatter[fieldOption.name] = nextValue;
+      } else if (actionType === "append") {
+        const nextValue = computeField(fieldOption, file);
+        const value = frontMatter[fieldOption.name];
+        if (!value) {
+          // empty
+          frontMatter[fieldOption.name] = [nextValue];
+        } else if (!Array.isArray(value)) {
+          // single, not array
+          if (value !== nextValue) {
+            frontMatter[fieldOption.name] = [value, nextValue];
+          }
+        } else {
+          // array
+          if (!value.includes(nextValue)) {
+            value.push(nextValue);
+          }
+        }
+      } else if (actionType === "once") {
+        const nextValue = computeField(fieldOption, file);
+        const value = frontMatter[fieldOption.name];
+        if (!value) {
+          // empty
+          frontMatter[fieldOption.name] = nextValue;
+        }
+      }
+    }
+  }
+};
+
+export const DEFAULT_FIELD_NAME = "exampleKeyName";
+
 interface FieldProps {
-  value: FieldOption | FieldOptionString;
-  onChange: (option: FieldOption | FieldOptionString) => void;
+  value: FieldOption;
+  onChange: (option: FieldOption) => void;
   onDelete: () => void;
 }
 
