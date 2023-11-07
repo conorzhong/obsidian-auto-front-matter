@@ -47,7 +47,7 @@ export default class AutoFrontMatterPlugin extends Plugin {
   private async loadSettings() {
     const data = await this.loadData();
     this.settings.fieldOptions =
-      data.fieldOptions || DEFAULT_SETTINGS.fieldOptions;
+      data?.fieldOptions ?? DEFAULT_SETTINGS.fieldOptions;
   }
 
   private async saveSettings() {
